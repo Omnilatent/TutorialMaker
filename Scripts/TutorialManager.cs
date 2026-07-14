@@ -14,7 +14,8 @@ namespace Omnilatent.TutorialMaker
         /// <summary>
         /// Temporary store data about player's tutorial progress
         /// </summary>
-        public static Dictionary<string, int> cacheHasSeenTutorial = new Dictionary<string, int>();
+        [Obsolete("No longer used internally. Now aliases data.finishedTutorials so tutorial progress has a single source of truth and manual UndoTutorial/SetTutorialSeeTime take effect immediately. Prefer HasSeenTutorial/SetTutorialSeeTime instead.")]
+        public static Dictionary<string, int> cacheHasSeenTutorial => data.finishedTutorials;
         public static Dictionary<string, ITutorialDisplay> activeTutorials = new Dictionary<string, ITutorialDisplay>(); //store list of active tutorial to iterate through
 
         static TutorialManager()
@@ -40,7 +41,6 @@ namespace Omnilatent.TutorialMaker
         {
             data = new TutorialProgress();
             data.Init();
-            cacheHasSeenTutorial.Clear();
             //activeTutorials.Clear();
             Save();
         }
@@ -60,14 +60,9 @@ namespace Omnilatent.TutorialMaker
 
         public static bool HasSeenTutorial(string id, int seeTime = 1)
         {
-            if (!cacheHasSeenTutorial.ContainsKey(id))
-            {
-                int value = 0;
-                if (data.finishedTutorials.ContainsKey(id)) value = data.finishedTutorials[id];
-                cacheHasSeenTutorial.Add(id, value);
-            }
-
-            return cacheHasSeenTutorial[id] >= seeTime;
+            int value = 0;
+            if (data.finishedTutorials.ContainsKey(id)) value = data.finishedTutorials[id];
+            return value >= seeTime;
         }
 
         public static bool CanShowTutorial(TutorialData tutData)
@@ -110,11 +105,6 @@ namespace Omnilatent.TutorialMaker
                 if (!data.finishedTutorials.ContainsKey(tutData.Id))
                     data.finishedTutorials.Add(tutData.Id, 0);
                 data.finishedTutorials[tutData.Id] += 1;
-                if (!cacheHasSeenTutorial.ContainsKey(tutData.Id))
-                {
-                    cacheHasSeenTutorial.Add(tutData.Id, 0);
-                }
-                cacheHasSeenTutorial[tutData.Id] = data.finishedTutorials[tutData.Id];
                 TutorialManager.activeTutorials.Remove(tutData.Id);
 
                 if (tutData.saveOnDone) TutorialManager.Save();
@@ -143,6 +133,17 @@ namespace Omnilatent.TutorialMaker
                 else
                     activeTutorials.Add(m_Data.Id, tutorialDisplay);
             }
+        }
+
+        public static void UndoTutorial(TutorialData tutData)
+        {
+            if (!data.finishedTutorials.ContainsKey(tutData.Id)) return;
+            SetTutorialSeeTime(tutData, 0);
+        }
+        
+        public static void SetTutorialSeeTime(TutorialData tutData, int seeTime)
+        {
+            data.finishedTutorials[tutData.Id] = seeTime;
         }
     }
 }
